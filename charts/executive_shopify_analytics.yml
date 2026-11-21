@@ -1,7 +1,41 @@
 title: Executive Shopify Analytics
 source: default
-extends: vivid
-text: >-
+extends: stark
+style:
+  background: '#F5F8FB'
+  accent: '#087F83'
+  font: {family: "Inter, 'Helvetica Neue', Arial, sans-serif", size: 13, color: '#18304A'}
+  frame: {max_width: 1620, margin: 26, card_padding: 18, card_gap: 18}
+  title:
+    font: {family: "Inter, 'Helvetica Neue', Arial, sans-serif", color: '#102B49', weight: 700}
+  text:
+    font: {color: '#52657B', size: 13}
+  charts:
+    background: '#FFFFFF'
+    border: {width: 1, color: '#DFE7EF', radius: 10}
+    color:
+      categorical:
+        palette: ['#102F50', '#087F83', '#7EAAB5', '#A6BBCB', '#D1E0E8', '#536E88']
+        single_series_palette: ['#146175']
+    font: {color: '#304860', size: 12}
+    axis_x:
+      grid: {visible: false}
+      labels: {font: {color: '#52657B'}}
+    axis_y:
+      grid: {color: '#E8EEF3', opacity: 0.75}
+      labels: {font: {color: '#52657B'}}
+    kpi:
+      background: '#FFFFFF'
+      align: left
+      border: {width: 1, color: '#DFE7EF', radius: 10}
+      value: {font: {color: '#102B49', weight: 700, size: 27}}
+      label: {font: {color: '#52657B', size: 12}}
+    table:
+      header: {background: '#F2F6F9', font: {color: '#102B49', weight: 600}}
+      row: {stripe: {color: '#F8FAFC'}}
+text: |
+  **E-commerce Performance Overview**
+
   Recorded Order Value is recorded in the marts (USD), not net revenue or cash collected.
   The Sales date filter applies only to sales-mart measures: overview Recorded Order Value and orders,
   plus Sales Performance. Product, customer, order-status, and inventory measures remain all-time.
@@ -87,30 +121,42 @@ queries:
     formats: {location_id: id}
 charts:
   value_kpi: {type: kpi, query: sales_totals, value: recorded_order_value, label: 'Recorded Order Value (sales date)'}
-  orders_kpi: {type: kpi, query: sales_totals, value: total_orders, label: 'Total orders (sales date)'}
-  units_kpi: {type: kpi, query: product_totals, value: units_sold, label: 'Total units sold (all time)'}
-  customers_kpi: {type: kpi, query: customer_totals, value: customers_represented, label: 'Customers represented (all time)'}
+  orders_kpi: {type: kpi, query: sales_totals, value: total_orders, label: 'Total Orders (sales date)'}
+  units_kpi: {type: kpi, query: product_totals, value: units_sold, label: 'Units Sold (all time)'}
+  customers_kpi: {type: kpi, query: customer_totals, value: customers_represented, label: 'Customers Represented (all time)'}
   available_kpi:
     type: kpi
     query: inventory_totals
     value: available_quantity
-    label: Available inventory quantity (current mart)
+    label: Available Inventory (current mart)
     style: {value: {format: integer}}
   sales_trend:
     type: line
     query: sales_daily
-    title: Daily Recorded Order Value Trend
+    title: Daily Recorded Order Value
     subtitle: One recorded day currently; no multi-day trend can be inferred.
     x: order_date
     y: recorded_order_value
     height: 330
     warnings_ignore: [WARN-TEMPORAL-SINGLE-POINT]
+    style:
+      marks:
+        line: {stroke: {color: '#087F83', width: 3}}
+        point: {size: 95, color: '#087F83', filled: true}
   daily_orders: {type: bar, query: sales_daily, title: Daily Order Volume, x: order_date, y: total_orders}
   sales_by_date: {type: table, query: sales_daily, title: Recorded Order Value by Date}
-  financial_orders: {type: donut, query: financial_status, title: Orders by Financial Status, color: financial_status, theta: total_orders}
-  fulfillment_orders: {type: bar, query: fulfillment_status, title: Orders by Fulfillment Status, x: fulfillment_status, y: total_orders}
+  financial_orders: {type: donut, query: financial_status, title: Order Financial Status, color: financial_status, theta: total_orders}
+  fulfillment_orders: {type: bar, query: fulfillment_status, title: Order Fulfillment Status, x: fulfillment_status, y: total_orders}
   financial_value: {type: bar, query: financial_status, title: Recorded Order Value by Financial Status, x: financial_status, y: recorded_order_value}
-  product_units: {type: bar, query: products, title: Top Products by Units Sold, x: product_title, y: units_sold, height: 560}
+  product_units:
+    type: bar
+    query: products
+    title: Top Performing Products
+    subtitle: Ranked by units sold.
+    x: product_title
+    y: units_sold
+    height: 560
+    style: {orientation: horizontal}
   product_value:
     type: bar
     query: products
@@ -120,7 +166,14 @@ charts:
     y: product_sales_value
     height: 560
   product_rank: {type: table, query: product_ranking, title: Product Ranking by Units Sold}
-  customer_spend: {type: bar, query: customers, title: Top Customers by Lifetime Recorded Spend, x: customer_id, y: lifetime_recorded_spend}
+  customer_spend:
+    type: bar
+    query: customers
+    title: Top Customers by Lifetime Recorded Spend
+    x: customer_id
+    y: lifetime_recorded_spend
+    height: 560
+    style: {orientation: horizontal}
   customer_orders: {type: bar, query: customers, title: Orders per Customer, x: customer_id, y: total_orders}
   customer_detail: {type: table, query: customers, title: Customer Purchasing Performance}
   onhand_kpi:
@@ -132,7 +185,7 @@ charts:
   inventory_comparison:
     type: bar
     query: inventory_locations
-    title: Inventory Quantity by Location
+    title: Inventory Availability by Location
     subtitle: Available and on-hand quantities by location ID.
     x: location_id
     y: [available_quantity, on_hand_quantity]
@@ -140,21 +193,18 @@ charts:
 rows:
   - title: Executive Overview
     rows:
-      - cols: [value_kpi, orders_kpi, units_kpi]
-      - cols: [customers_kpi, available_kpi]
-  - title: Sales Performance
-    rows: [sales_trend, daily_orders, sales_by_date]
-  - title: Order Analysis
+      - cols: [value_kpi, orders_kpi, units_kpi, customers_kpi, available_kpi]
+  - title: Performance & Order Status
     rows:
+      - sales_trend
       - cols: [financial_orders, fulfillment_orders]
-      - financial_value
-  - title: Product Performance
+  - title: Products, Customers & Inventory
     rows:
-      - cols: [product_units, product_value]
-      - product_rank
-  - title: Customer Performance
-    rows:
-      - cols: [customer_spend, customer_orders]
-      - customer_detail
-  - title: Inventory Performance
-    rows: [onhand_kpi, inventory_comparison]
+      - cols: [product_units, customer_spend]
+      - inventory_comparison
+  - title: Sales & Order Detail
+    rows: [daily_orders, sales_by_date, financial_value]
+  - title: Product & Customer Detail
+    rows: [product_value, product_rank, customer_orders, customer_detail]
+  - title: Inventory Detail
+    rows: [onhand_kpi]
