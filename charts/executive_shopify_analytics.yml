@@ -38,7 +38,8 @@ text: |
 
   Recorded Order Value is recorded in the marts (USD), not net revenue or cash collected.
   The Sales date filter applies only to sales-mart measures: overview Recorded Order Value and orders,
-  plus Sales Performance. Product, customer, order-status, and inventory measures remain all-time.
+  plus the daily sales charts in Performance & Order Status and Sales & Order Detail.
+  Product, customer, order-status, and inventory measures remain all-time.
   Financial status REFUNDED is a status label, not evidence of a refund transaction.
 variables:
   sales_date:
@@ -142,7 +143,7 @@ charts:
     style:
       marks:
         line: {stroke: {color: '#087F83', width: 3}}
-        point: {size: 95, color: '#087F83', filled: true}
+        point: {size: 95, color: '#087F83'}
   daily_orders: {type: bar, query: sales_daily, title: Daily Order Volume, x: order_date, y: total_orders}
   sales_by_date: {type: table, query: sales_daily, title: Recorded Order Value by Date}
   financial_orders: {type: donut, query: financial_status, title: Order Financial Status, color: financial_status, theta: total_orders}
