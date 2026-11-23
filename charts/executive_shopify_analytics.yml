@@ -1,0 +1,211 @@
+title: Executive Shopify Analytics
+source: default
+extends: stark
+style:
+  background: '#F5F8FB'
+  accent: '#087F83'
+  font: {family: "Inter, 'Helvetica Neue', Arial, sans-serif", size: 13, color: '#18304A'}
+  frame: {max_width: 1620, margin: 26, card_padding: 18, card_gap: 18}
+  title:
+    font: {family: "Inter, 'Helvetica Neue', Arial, sans-serif", color: '#102B49', weight: 700}
+  text:
+    font: {color: '#52657B', size: 13}
+  charts:
+    background: '#FFFFFF'
+    border: {width: 1, color: '#DFE7EF', radius: 10}
+    color:
+      categorical:
+        palette: ['#102F50', '#087F83', '#7EAAB5', '#A6BBCB', '#D1E0E8', '#536E88']
+        single_series_palette: ['#146175']
+    font: {color: '#304860', size: 12}
+    axis_x:
+      grid: {visible: false}
+      labels: {font: {color: '#52657B'}}
+    axis_y:
+      grid: {color: '#E8EEF3', opacity: 0.75}
+      labels: {font: {color: '#52657B'}}
+    kpi:
+      background: '#FFFFFF'
+      align: left
+      border: {width: 1, color: '#DFE7EF', radius: 10}
+      value: {font: {color: '#102B49', weight: 700, size: 27}}
+      label: {font: {color: '#52657B', size: 12}}
+    table:
+      header: {background: '#F2F6F9', font: {color: '#102B49', weight: 600}}
+      row: {stripe: {color: '#F8FAFC'}}
+text: |
+  **E-commerce Performance Overview**
+
+  Recorded Order Value is recorded in the marts (USD), not net revenue or cash collected.
+  The Sales date filter applies only to sales-mart measures: overview Recorded Order Value and orders,
+  plus the daily sales charts in Performance & Order Status and Sales & Order Detail.
+  Product, customer, order-status, and inventory measures remain all-time.
+  Financial status REFUNDED is a status label, not evidence of a refund transaction.
+variables:
+  sales_date:
+    column: mart_daily_sales.order_date
+    input: daterange
+queries:
+  sales_totals:
+    sql: |
+      SELECT COALESCE(SUM(recorded_order_revenue), 0) AS recorded_order_value,
+             COALESCE(SUM(total_orders), 0) AS total_orders
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_daily_sales`
+      WHERE {{ filter_date_range('order_date', sales_date) }}
+    formats: {recorded_order_value: currency_full}
+  sales_daily:
+    sql: |
+      SELECT order_date, SUM(recorded_order_revenue) AS recorded_order_value,
+             SUM(total_orders) AS total_orders
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_daily_sales`
+      WHERE {{ filter_date_range('order_date', sales_date) }}
+      GROUP BY order_date ORDER BY order_date
+    formats: {recorded_order_value: currency_full}
+  product_totals:
+    sql: |
+      SELECT COALESCE(SUM(units_sold), 0) AS units_sold
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_product_performance`
+  customer_totals:
+    sql: |
+      SELECT COUNT(DISTINCT customer_id) AS customers_represented
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_customer_performance`
+  inventory_totals:
+    sql: |
+      SELECT COALESCE(SUM(available_quantity), 0) AS available_quantity,
+             COALESCE(SUM(on_hand_quantity), 0) AS on_hand_quantity
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_inventory_performance`
+  financial_status:
+    sql: |
+      SELECT COALESCE(display_financial_status, 'Unknown') AS financial_status,
+             SUM(total_orders) AS total_orders,
+             SUM(recorded_order_value) AS recorded_order_value
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_order_status`
+      GROUP BY 1 ORDER BY total_orders DESC
+    formats: {recorded_order_value: currency_full}
+  fulfillment_status:
+    sql: |
+      SELECT COALESCE(display_fulfillment_status, 'Unknown') AS fulfillment_status,
+             SUM(total_orders) AS total_orders
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_order_status`
+      GROUP BY 1 ORDER BY total_orders DESC
+  products:
+    sql: |
+      SELECT CAST(product_id AS STRING) AS product_id,
+             REPLACE(REPLACE(product_title, '\n', ' '), '\r', ' ') AS product_title,
+             units_sold, discounted_sales_value AS product_sales_value, total_order_lines
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_product_performance`
+      ORDER BY units_sold DESC, product_sales_value DESC, product_id
+    formats: {product_sales_value: currency_full, product_id: id}
+  product_ranking:
+    sql: |
+      SELECT ROW_NUMBER() OVER (ORDER BY units_sold DESC, discounted_sales_value DESC, product_id) AS rank,
+             CAST(product_id AS STRING) AS product_id,
+             REPLACE(REPLACE(product_title, '\n', ' '), '\r', ' ') AS product_title,
+             units_sold, discounted_sales_value AS product_sales_value, total_order_lines
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_product_performance`
+      ORDER BY rank
+    formats: {product_sales_value: currency_full, product_id: id}
+  customers:
+    sql: |
+      SELECT CAST(customer_id AS STRING) AS customer_id, total_orders, lifetime_recorded_spend,
+             first_order_date, most_recent_order_date
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_customer_performance`
+      ORDER BY lifetime_recorded_spend DESC, customer_id
+    formats: {lifetime_recorded_spend: currency_full, customer_id: id}
+  inventory_locations:
+    sql: |
+      SELECT CAST(location_id AS STRING) AS location_id,
+             SUM(available_quantity) AS available_quantity,
+             SUM(on_hand_quantity) AS on_hand_quantity
+      FROM `ecommerce-analytics2024.dbt_shopify.mart_inventory_performance`
+      GROUP BY location_id ORDER BY location_id
+    formats: {location_id: id}
+charts:
+  value_kpi: {type: kpi, query: sales_totals, value: recorded_order_value, label: 'Recorded Order Value (sales date)'}
+  orders_kpi: {type: kpi, query: sales_totals, value: total_orders, label: 'Total Orders (sales date)'}
+  units_kpi: {type: kpi, query: product_totals, value: units_sold, label: 'Units Sold (all time)'}
+  customers_kpi: {type: kpi, query: customer_totals, value: customers_represented, label: 'Customers Represented (all time)'}
+  available_kpi:
+    type: kpi
+    query: inventory_totals
+    value: available_quantity
+    label: Available Inventory (current mart)
+    style: {value: {format: integer}}
+  sales_trend:
+    type: line
+    query: sales_daily
+    title: Daily Recorded Order Value
+    subtitle: One recorded day currently; no multi-day trend can be inferred.
+    x: order_date
+    y: recorded_order_value
+    height: 330
+    warnings_ignore: [WARN-TEMPORAL-SINGLE-POINT]
+    style:
+      marks:
+        line: {stroke: {color: '#087F83', width: 3}}
+        point: {size: 95, color: '#087F83'}
+  daily_orders: {type: bar, query: sales_daily, title: Daily Order Volume, x: order_date, y: total_orders}
+  sales_by_date: {type: table, query: sales_daily, title: Recorded Order Value by Date}
+  financial_orders: {type: donut, query: financial_status, title: Order Financial Status, color: financial_status, theta: total_orders}
+  fulfillment_orders: {type: bar, query: fulfillment_status, title: Order Fulfillment Status, x: fulfillment_status, y: total_orders}
+  financial_value: {type: bar, query: financial_status, title: Recorded Order Value by Financial Status, x: financial_status, y: recorded_order_value}
+  product_units:
+    type: bar
+    query: products
+    title: Top Performing Products
+    subtitle: Ranked by units sold.
+    x: product_title
+    y: units_sold
+    height: 560
+    style: {orientation: horizontal}
+  product_value:
+    type: bar
+    query: products
+    title: Product-Level Sales Value (USD)
+    subtitle: Discounted sales value from product mart; not an order count.
+    x: product_title
+    y: product_sales_value
+    height: 560
+  product_rank: {type: table, query: product_ranking, title: Product Ranking by Units Sold}
+  customer_spend:
+    type: bar
+    query: customers
+    title: Top Customers by Lifetime Recorded Spend
+    x: customer_id
+    y: lifetime_recorded_spend
+    height: 560
+    style: {orientation: horizontal}
+  customer_orders: {type: bar, query: customers, title: Orders per Customer, x: customer_id, y: total_orders}
+  customer_detail: {type: table, query: customers, title: Customer Purchasing Performance}
+  onhand_kpi:
+    type: kpi
+    query: inventory_totals
+    value: on_hand_quantity
+    label: On-hand inventory quantity (current mart)
+    style: {value: {format: integer}}
+  inventory_comparison:
+    type: bar
+    query: inventory_locations
+    title: Inventory Availability by Location
+    subtitle: Available and on-hand quantities by location ID.
+    x: location_id
+    y: [available_quantity, on_hand_quantity]
+    field_labels: {available_quantity: Available, on_hand_quantity: On hand}
+rows:
+  - title: Executive Overview
+    rows:
+      - cols: [value_kpi, orders_kpi, units_kpi, customers_kpi, available_kpi]
+  - title: Performance & Order Status
+    rows:
+      - sales_trend
+      - cols: [financial_orders, fulfillment_orders]
+  - title: Products, Customers & Inventory
+    rows:
+      - cols: [product_units, customer_spend]
+      - inventory_comparison
+  - title: Sales & Order Detail
+    rows: [daily_orders, sales_by_date, financial_value]
+  - title: Product & Customer Detail
+    rows: [product_value, product_rank, customer_orders, customer_detail]
+  - title: Inventory Detail
+    rows: [onhand_kpi]
