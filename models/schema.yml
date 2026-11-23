@@ -3,6 +3,7 @@ version: 2
 
 models:
   - name: dim_products
+    description: "Product dimension containing descriptive attributes for Shopify products. One record per product."
     columns:
       - name: product_id
         data_tests:
@@ -10,21 +11,183 @@ models:
           - not_null
 
   - name: fct_orders
+    description: "Order-level fact table containing Shopify order details, financial values, customer identifiers, and order statuses. One record per order. Incrementally updated using order_updated_at."
     columns:
       - name: order_id
         data_tests:
           - unique
           - not_null
-  
+
   - name: fct_order_lines
+    description: "Order-line fact table containing product-level quantities, prices, discounts, and order references. One record per order line."
     columns:
       - name: order_line_id
         data_tests:
           - unique
           - not_null
-  
-  - name: mart_daily_sales
-    columns:
-      - name: order_date
+
+      - name: order_id
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+
+  - name: mart_daily_sales
+    description: "Daily sales summary grouped by order date and currency. Reports order counts, recorded order value, discounts, and recorded refunds. The current sample dataset contains only one observed sales date."
+    columns:
+      - name: order_date
+        description: "Date on which the Shopify orders were created."
+        data_tests:
+          - not_null
+
+      - name: currency_code
+        description: "Currency used for the recorded order values."
+        data_tests:
+          - not_null
+
+      - name: total_orders
+        description: "Number of orders recorded for the date and currency."
+
+      - name: recorded_order_revenue
+        description: "Sum of recorded order totals. This is not necessarily cash collected or net revenue."
+
+      - name: recorded_discounts
+        description: "Total discounts recorded against orders."
+
+      - name: recorded_refunds
+        description: "Total refund amount recorded in the source order data."
+
+  - name: mart_product_performance
+    description: "Product-level performance summary showing order activity, units sold, original sales value, discounted sales value, and discounts by product."
+    columns:
+      - name: product_id
+        description: "Unique identifier for each Shopify product."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: product_title
+        description: "Name or title of the product."
+
+      - name: product_type
+        description: "Shopify product category or type."
+
+      - name: vendor
+        description: "Vendor associated with the product."
+
+      - name: total_orders
+        description: "Number of order-line records associated with the product. An order containing multiple products can contribute to multiple product records."
+
+      - name: total_order_lines
+        description: "Number of order lines recorded for the product."
+
+      - name: units_sold
+        description: "Total quantity of product units recorded as sold."
+
+      - name: original_sales
+        description: "Total sales value calculated using original unit prices."
+
+      - name: discounted_sales
+        description: "Total sales value calculated using discounted unit prices."
+
+      - name: total_discounts
+        description: "Total discounts recorded against the product's order lines."
+
+      - name: currency_code
+        description: "Currency used for the product sales values."
+
+  - name: mart_customer_performance
+    description: "Customer-level performance summary showing order frequency, lifetime recorded spend, average order value, and purchasing dates. Excludes customer personally identifiable information."
+    columns:
+      - name: customer_id
+        description: "Unique identifier for the Shopify customer."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_created_at
+        description: "Date and time the customer record was created in Shopify."
+
+      - name: total_orders
+        description: "Total number of orders recorded for the customer."
+
+      - name: lifetime_recorded_spend
+        description: "Sum of the customer's recorded order totals. This is not necessarily cash collected or net revenue."
+
+      - name: average_order_value
+        description: "Average recorded order value for the customer."
+
+      - name: first_order_date
+        description: "Date of the customer's earliest recorded order."
+
+      - name: last_order_date
+        description: "Date of the customer's most recent recorded order."
+
+      - name: days_between_first_and_last_order
+        description: "Number of days between the customer's first and most recent recorded orders."
+
+      - name: currency_code
+        description: "Currency used for the customer's recorded order values."
+
+  - name: mart_order_status
+    description: "Order status summary grouped by financial status, fulfillment status, and currency. Provides order counts, recorded order value, and recorded refunds."
+    columns:
+      - name: currency_code
+        data_tests:
+          - not_null
+
+      - name: display_financial_status
+        description: "Shopify financial status assigned to the order."
+
+      - name: display_fulfillment_status
+        description: "Shopify fulfillment status assigned to the order."
+
+      - name: currency_code
+        description: "Currency used for the recorded order values."
+        data_tests:
+          - not_null
+
+      - name: total_orders
+        description: "Number of orders grouped under the financial status, fulfillment status, and currency."
+
+      - name: recorded_order_value
+        description: "Sum of recorded order totals for the status group. This is not necessarily cash collected or net revenue."
+
+      - name: recorded_refunds
+        description: "Sum of refund amounts recorded in the source order data."
+
+      - name: average_order_value
+        description: "Average recorded order value within the status group."
+
+  - name: mart_inventory_performance
+    description: "Inventory quantity summary at inventory item and location level, including available, on-hand, committed, incoming, damaged, and reserved quantities."
+    columns:
+      - name: inventory_item_id
+        description: "Identifier of the Shopify inventory item."
+        data_tests:
+          - not_null
+
+      - name: location_id
+        description: "Identifier of the Shopify location where inventory is held."
+        data_tests:
+          - not_null
+
+      - name: available_quantity
+        description: "Quantity of inventory currently available for sale."
+
+      - name: on_hand_quantity
+        description: "Total physical inventory recorded at the location."
+
+      - name: committed_quantity
+        description: "Inventory committed to orders but not yet fulfilled."
+
+      - name: incoming_quantity
+        description: "Inventory expected to arrive at the location."
+
+      - name: damaged_quantity
+        description: "Inventory recorded as damaged."
+
+      - name: reserved_quantity
+        description: "Inventory reserved and unavailable for general sale."

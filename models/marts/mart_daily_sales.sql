@@ -1,6 +1,7 @@
+{{ config(materialized='table') }}
 
 SELECT
-    DATE(order_created_at) AS order_date,
+    {{ convert_to_date('order_created_at') }} AS order_date,
     currency_code,
     COUNT(*) AS total_orders,
     SUM(order_total) AS recorded_order_revenue,
